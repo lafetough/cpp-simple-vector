@@ -32,6 +32,12 @@ private:
     size_t x_;
 };
 
+
+ostream& operator<<(ostream& os, X value) {
+    return os << value.GetX();
+}
+
+
 SimpleVector<int> GenerateVector(size_t size) {
     SimpleVector<int> v(size);
     iota(v.begin(), v.end(), 1);
