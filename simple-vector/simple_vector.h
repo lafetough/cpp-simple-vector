@@ -6,7 +6,7 @@
 #include "array_ptr.h"
 #include <algorithm>
 #include <iostream>
-
+#include <numeric>
 
 
 class ReserveProxyObj {
@@ -39,7 +39,7 @@ public:
 
     // Создаёт вектор из size элементов, инициализированных значением по умолчанию
     explicit SimpleVector(size_t size)
-        :size_(size), array_(ArrayPtr<Type>(size)), capacity_(size * 2)
+        :size_(size), array_(ArrayPtr<Type>(size)), capacity_(size)
     {
         std::generate(begin(), end(), []() {return Type{};});
     }
@@ -80,40 +80,32 @@ public:
 
     SimpleVector(SimpleVector&& other)
     {
-        Resize(other.GetSize());
         this->swap(other);
         other.Clear();
     }
 
-
-    // Возвращает количество элементов в массиве
     size_t GetSize() const noexcept {
         return size_;
     }
-    // Возвращает вместимость массива
+
     size_t GetCapacity() const noexcept {
         return capacity_;
     }
 
-    // Сообщает, пустой ли массив
     bool IsEmpty() const noexcept {
         return size_ == 0;
     }
 
-    // Возвращает ссылку на элемент с индексом index
     Type& operator[](size_t index) noexcept {
         assert(index < size_);
         return array_[index];
     }
 
-    // Возвращает константную ссылку на элемент с индексом index
     const Type& operator[](size_t index) const noexcept {
         assert(index < size_);
         return array_[index];
     }
 
-    // Возвращает константную ссылку на элемент с индексом index
-    // Выбрасывает исключение std::out_of_range, если index >= size
     Type& At(size_t index) {
         if (index >= size_) {
             throw std::out_of_range("Index out of range");
@@ -122,25 +114,18 @@ public:
         return array_[index];
     }
 
-    // Возвращает константную ссылку на элемент с индексом index
-    // Выбрасывает исключение std::out_of_range, если index >= size
+
     const Type& At(size_t index) const {
         if (index >= size_) {
             throw std::out_of_range("Index out of range");
         }
-        //const Type ret = array_[index];
         return array_[index];
     }
 
-    // Обнуляет размер массива, не изменяя его вместимость
     void Clear() noexcept {
         size_ = 0;
     }
 
-
-
-    // Изменяет размер массива.
-    // При увеличении размера новые элементы получают значение по умолчанию для типа Type
     void Resize(size_t new_size) {
 
         if (new_size <= size_) {
@@ -160,50 +145,35 @@ public:
 
     }
 
-
-    // Возвращает итератор на начало массива
-    // Для пустого массива может быть равен (или не равен) nullptr
     Iterator begin() noexcept {
         return array_.Get();
     }
 
-    // Возвращает итератор на элемент, следующий за последним
-    // Для пустого массива может быть равен (или не равен) nullptr
     Iterator end() noexcept {
         return (array_.Get() + size_);
     }
 
-    // Возвращает константный итератор на начало массива
-    // Для пустого массива может быть равен (или не равен) nullptr
     ConstIterator begin() const noexcept {
         return array_.Get();
     }
 
-    // Возвращает итератор на элемент, следующий за последним
-    // Для пустого массива может быть равен (или не равен) nullptr
     ConstIterator end() const noexcept {
         return (array_.Get() + size_);
     }
 
-    // Возвращает константный итератор на начало массива
-    // Для пустого массива может быть равен (или не равен) nullptr
     ConstIterator cbegin() const noexcept {
         return array_.Get();
     }
 
-    // Возвращает итератор на элемент, следующий за последним
-    // Для пустого массива может быть равен (или не равен) nullptr
     ConstIterator cend() const noexcept {
         return (array_.Get() + size_);
     }
 
     void PushBack(const Type& item) {
 
-        size_t new_size;
+        size_t new_size = size_ + 1;
         if (size_ >= capacity_) {
-            !size_ ? new_size = 1 : new_size = size_ + 1;
-            Resize(new_size);
-            Reserve(new_size * 2);
+            Reserve(std::max(1, capacity_ * 2));
             array_[size_ - 1] = item;
         }
         else {
@@ -214,15 +184,14 @@ public:
 
     void PushBack(Type&& item) {
 
-        size_t new_size;
+        size_t new_size = size_ + 1;
         if (size_ >= capacity_) {
-            !size_ ? new_size = 1 : new_size = size_ + 1;
-            Resize(new_size);
-            Reserve(new_size * 2);
-            array_[size_ - 1] =  std::move(item);
+            Reserve(std::max(1, (2 * static_cast<int>(capacity_))));
+            array_[size_] =  std::move(item);
+            ++size_;
         }
         else {
-            std::swap(array_[size_], item);
+            array_[size_] = std::move(item);
             ++size_;
         }
     }
@@ -241,82 +210,11 @@ public:
     }
 
     Iterator Insert(ConstIterator pos, const Type& value) {
-
-        if (!(pos <= cend()) && !(pos >= cbegin())) {
-            throw std::out_of_range("Iterator is out if range");
-        }
-
-        auto dist = std::distance(pos, cend());
-
-        if (size_ == 0 && size_ >= capacity_) {
-            return EmptyVectorInsert(value);
-        }
-
-        if (pos == end() && size_ >= capacity_) {
-            return EndVectorInsert(pos, value);
-        }
-
-        if (size_ >= capacity_) {
-
-
-            ArrayPtr<Type> temp_arr(size_ + 1);
-            std::move_backward(const_cast<Iterator>(pos), end(), temp_arr.Get() + size_ + 1);
-
-            std::move(begin(), const_cast<Iterator>(pos), temp_arr.Get());
-
-            temp_arr[dist] = std::move(value);
-            ++size_;
-            ++capacity_;
-            array_.swap(temp_arr);
-        }
-        else {
-            std::move_backward(const_cast<Iterator>(pos), end(), end() + 1);
-            *const_cast<Iterator>(pos) = value;
-            ++size_;
-        }
-
-        return &array_[dist];
+        return InsertProcess(pos, value);
     }
 
     Iterator Insert(ConstIterator pos, Type&& value) {
-
-        if (!(pos <= cend()) && !(pos >= cbegin())) {
-            throw std::out_of_range("Iterator is out if range");
-        }
-
-        auto dist = std::distance(cbegin(), pos);
-
-        if (size_ == 0 && size_ >= capacity_) {
-            return EmptyVectorInsert(value);
-        }
-
-        if (pos == end() && size_ >= capacity_) {
-            return EndVectorInsert(pos, value);
-        }
-
-        if (size_ >= capacity_) {
-
-            ArrayPtr<Type> temp_arr(size_ + 1);
-            std::move_backward(const_cast<Iterator>(pos), end(), temp_arr.Get() + size_ + 1);
-            
-            std::move(begin(), const_cast<Iterator>(pos), temp_arr.Get());
-            
-            temp_arr[dist] = std::move(value);
-
-            ++size_;
-            ++capacity_;
-
-            array_.swap(temp_arr);
-
-
-        }
-        else {
-            std::move_backward(const_cast<Iterator>(pos), end(), end() + 1);
-            std::swap(*const_cast<Iterator>(pos), value);
-            ++size_;
-        }
-
-        return &array_[dist];
+        return InsertProcess(pos, value);
     }
 
     // Удаляет элемент вектора в указанной позиции
@@ -346,16 +244,50 @@ private:
     ArrayPtr<Type> array_ = {};
     size_t capacity_ = {};
 
-    Iterator EmptyVectorInsert(Type& value) {
-        Resize(1);
-        array_[0] = std::move(value);
-        return &array_[0];
-    }
+    Iterator InsertProcess(ConstIterator pos, Type& value) {
 
-    Iterator EndVectorInsert(ConstIterator pos, Type& value) {
-        Resize(size_ + 1);
-        *(std::prev(end(), 1)) = std::move(value);
-        return (std::prev(end(), 1));
+        if (!(pos <= cend()) && !(pos >= cbegin())) {
+            throw std::out_of_range("Iterator is out if range");
+        }
+
+        auto dist = std::distance(cbegin(), pos);
+
+        if (size_ == 0 && size_ >= capacity_) {
+            Resize(1);
+            array_[0] = std::move(value);
+            return &array_[0];
+        }
+
+        if (pos == end() && size_ >= capacity_) {
+            Resize(size_ + 1);
+            *(std::prev(end(), 1)) = std::move(value);
+            return (std::prev(end(), 1));
+        }
+
+        if (size_ >= capacity_) {
+
+            ArrayPtr<Type> temp_arr(size_ + 1);
+            std::move_backward(const_cast<Iterator>(pos), end(), temp_arr.Get() + size_ + 1);
+
+            std::move(begin(), const_cast<Iterator>(pos), temp_arr.Get());
+
+            temp_arr[dist] = std::move(value);
+
+            ++size_;
+            ++capacity_;
+
+            array_.swap(temp_arr);
+
+
+        }
+        else {
+            std::move_backward(const_cast<Iterator>(pos), end(), end() + 1);
+            std::swap(*const_cast<Iterator>(pos), value);
+            ++size_;
+        }
+
+        return &array_[dist];
+
     }
 };
 

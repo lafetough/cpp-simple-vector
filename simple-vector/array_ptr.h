@@ -10,8 +10,9 @@ public:
 
     // Создаёт в куче массив из size элементов типа Type.
     // Если size == 0, поле raw_ptr_ должно быть равно nullptr
-    explicit ArrayPtr(size_t size) {
-        size == 0 ? raw_ptr_ = nullptr : raw_ptr_ = new Type[size]{};
+    explicit ArrayPtr(size_t size)
+        :raw_ptr_(size == 0 ? nullptr : new Type[size]{})
+    {
     }
 
     // Конструктор из сырого указателя, хранящего адрес массива в куче либо nullptr
