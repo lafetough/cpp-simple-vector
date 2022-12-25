@@ -74,7 +74,7 @@ public:
     }
 
     SimpleVector(ReserveProxyObj obj)
-        :capacity_(obj.reserved_), array_(ArrayPtr<Type>(obj.reserved_))
+        :array_(ArrayPtr<Type>(obj.reserved_)), capacity_(obj.reserved_)
     {
     }
 
@@ -170,30 +170,11 @@ public:
     }
 
     void PushBack(const Type& item) {
-
-        size_t new_size = size_ + 1;
-        if (size_ >= capacity_) {
-            Reserve(std::max(1, capacity_ * 2));
-            array_[size_ - 1] = item;
-        }
-        else {
-            array_[size_] = item;
-            ++size_;
-        }
+        PushBackProcess(item);
     }
 
     void PushBack(Type&& item) {
-
-        size_t new_size = size_ + 1;
-        if (size_ >= capacity_) {
-            Reserve(std::max(1, (2 * static_cast<int>(capacity_))));
-            array_[size_] =  std::move(item);
-            ++size_;
-        }
-        else {
-            array_[size_] = std::move(item);
-            ++size_;
-        }
+        PushBackProcess(item);
     }
 
     void PopBack() noexcept {
@@ -282,12 +263,25 @@ private:
         }
         else {
             std::move_backward(const_cast<Iterator>(pos), end(), end() + 1);
-            std::swap(*const_cast<Iterator>(pos), value);
+            *const_cast<Iterator>(pos) = std::move(value);
             ++size_;
         }
 
         return &array_[dist];
 
+    }
+
+    void PushBackProcess(Type& item) {
+        size_t new_size = size_ + 1;
+        if (size_ >= capacity_) {
+            Reserve(std::max(1, static_cast<int>(capacity_ * 2)));
+            array_[size_] = std::move(item);
+            ++size_;
+        }
+        else {
+            array_[size_] = std::move(item);
+            ++size_;
+        }
     }
 };
 
